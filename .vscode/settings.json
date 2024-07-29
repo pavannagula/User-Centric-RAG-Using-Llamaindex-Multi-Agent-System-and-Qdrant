@@ -1,0 +1,4 @@
+{
+    "editor.semanticHighlighting.enabled": true,
+    "editor.defaultFormatter": "ms-python.python"
+}
