@@ -20,8 +20,19 @@ import logging
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
-def DocumentPreprocessingAgent(state: dict) -> OpenAIAgent:
+# Load environmental variables from a .env file
+load_dotenv()
 
+Qdrant_API_KEY = os.getenv('Qdrant_API_KEY')
+Qdrant_URL = os.getenv('Qdrant_URL')
+Collection_Name = os.getenv('collection_name')
+qdrant_client = QdrantClient(
+                            url=Qdrant_URL,
+                            api_key=Qdrant_API_KEY)
+        
+
+def QdrantIndexingAgent(state: dict) -> OpenAIAgent:  
+        
     def load_nodes():
         metadata = []
         documents = []
@@ -35,7 +46,7 @@ def DocumentPreprocessingAgent(state: dict) -> OpenAIAgent:
                 metadata.append(node['metadata'])
                 documents.append(node['text'])
 
-            logging.info(f"Loaded {len(nodes)} the nodes from JSON file")
+            print(f"Loaded {len(nodes)} the nodes from JSON file")
 
         except Exception as e:
             logging.error(f"Error loading nodes from JSON file: {e}")
@@ -43,48 +54,100 @@ def DocumentPreprocessingAgent(state: dict) -> OpenAIAgent:
 
         return documents, metadata
 
-    def client_collection(embedding_model, documents, metadata):
-        qdrant_client = QdrantClient(
-            url=Qdrant_URL,
-            api_key=Qdrant_API_KEY)
+    def client_collection():
+        """
+        Create a collection in Qdrant vector database.
+        """
+        
+        if not qdrant_client.collection_exists(collection_name=Collection_Name): 
+            qdrant_client.create_collection(
+                collection_name= Collection_Name,
+                vectors_config={
+                        'dense': models.VectorParams(
+                            size=384,
+                            distance = models.Distance.COSINE,
+                        )
+                },
+                sparse_vectors_config={
+                    "sparse": models.SparseVectorParams(
+                                index=models.SparseIndexParams(
+                                on_disk=False,              
+                            ),
+                        )
+                    }
+            )
+            
+        print(f"Created collection '{Collection_Name}' in Qdrant vector database.")
 
+
+    def create_sparse_vector(sparse_embedding_model, text):
+        """
+        Create a sparse vector from the text using SPLADE.
+        """
+        sparse_embedding_model = sparse_embedding_model
+        # Generate the sparse vector using SPLADE model
+        embeddings = list(sparse_embedding_model.embed([text]))[0]
+
+        # Check if embeddings has indices and values attributes
+        if hasattr(embeddings, 'indices') and hasattr(embeddings, 'values'):
+            sparse_vector = models.SparseVector(
+                indices=embeddings.indices.tolist(),
+                values=embeddings.values.tolist()
+            )
+            return sparse_vector
+        else:
+            raise ValueError("The embeddings object does not have 'indices' and 'values' attributes.")
+
+    def insert_documents(embedding_model, documents, metadata):
+        points = []
         embedding_model = TextEmbedding(model_name=embedding_model)
         sparse_embedding_model = SparseTextEmbedding(model_name="Qdrant/bm42-all-minilm-l6-v2-attentions")
-        qdrant_client.set_model(embedding_model)
-        qdrant_client.set_sparse_model(sparse_embedding_model)
+        for i, (doc, metadata) in enumerate(tqdm(zip(documents, metadata), total=len(documents))):
+            # Generate both dense and sparse embeddings
+            dense_embedding = list(embedding_model.embed([doc]))[0]
+            sparse_vector = create_sparse_vector(sparse_embedding_model, doc)
 
-        try:
-            qdrant_client.recreate_collection(
-                collection_name="Hybrid_RAG_Collection",
-                vectors_config=qdrant_client.get_fastembed_vector_params(),
-                sparse_vectors_config=qdrant_client.get_fastembed_sparse_vector_params(),
+            # Create PointStruct
+            point = models.PointStruct(
+                id=i,
+                vector={
+                    'dense': dense_embedding.tolist(),
+                    'sparse': sparse_vector,
+                },
+                payload={
+                    'text': doc,
+                    **metadata  # Include all metadata
+                }
             )
+            points.append(point)
 
-            ids = qdrant_client.add(
-                collection_name="Hybrid_RAG_Collection",
-                documents=documents,
-                metadata=metadata,
-                ids=tqdm(range(len(documents))),
-            )
+        # Upsert points
+        qdrant_client.upsert(
+            collection_name=Collection_Name,
+            points=points
+        )
 
-            logging.info(f"Inserted {len(ids)} vectors into Qdrant cluster")
+        print(f"Upserted {len(points)} points with dense and sparse vectors into Qdrant vector database.")
 
-        except Exception as e:
-            logging.error(f"Error inserting vectors into Qdrant cluster: {e}")
-            raise
-
-    def indexing(embedding_model):
+    def indexing(embedding_model) -> None:
+        """
+        Index the documents into the Qdrant vector database.
+        """
+        print("Starting to load the nodes from JSON file")
         documents, metadata = load_nodes()
-        logging.info("Loaded the nodes from json file")
-        client_collection(embedding_model, documents, metadata)
-        logging.info("Inserted the documents into the Qdrant Cluster")
+        client_collection()
+        print("Creation of the Qdrant Collection is Done")
+        insert_documents(embedding_model, documents, metadata)
+        print("Indexing of the nodes is complete")
+    
+    
 
     def done() -> None:
         """When you inserted the vetors into the Qdrant Cluster, call this tool."""
-        logging.info("Indexing of the nodes is complete")
+        logging.info("Indexing of the nodes is complete and updating the state")
         state["current_speaker"] = None
         state["just_finished"] = True
-
+    
     tools = [
         FunctionTool.from_defaults(fn=indexing),
         FunctionTool.from_defaults(fn=done),
@@ -95,7 +158,7 @@ def DocumentPreprocessingAgent(state: dict) -> OpenAIAgent:
     Your task is to index the documents into a Qdrant cluster.
     To do this, you need to know the embedding model to use.
     You can ask the user to supply this.
-    If the user supplies the embedding model, call the tool "indexing" with this parameter to index the documents into the Qdrant cluster.
+    If the user supplies the embedding model, Then, call the tool "indexing" using the provided embedding model to index the documents into the Qdrant cluster.
     The current user state is:
     {pprint.pformat(state, indent=4)}
     When you have indexed the documents into the Qdrant cluster, call the tool "done" to signal that you are done.
@@ -107,3 +170,8 @@ def DocumentPreprocessingAgent(state: dict) -> OpenAIAgent:
         llm=OpenAI(model="gpt-3.5-turbo"),
         system_prompt=system_prompt,
     )
+
+if __name__ == '__main__':
+    state = {}
+    agent = QdrantIndexingAgent(state = state)
+    response = agent.chat("I want to index the documents using the sentence-transformers/all-MiniLM-L6-v2 embedding model.")
