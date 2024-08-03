@@ -267,8 +267,6 @@ def run() -> None:
         new_history = current_speaker.memory.get_all()
         root_memory.set(new_history)
 
-
-
 if __name__ == '__main__':
     print("Testing the Application")
     run()
