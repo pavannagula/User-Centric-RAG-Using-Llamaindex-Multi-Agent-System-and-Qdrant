@@ -14,6 +14,7 @@ from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI 
 from llama_index.agent.openai import OpenAIAgent
+from reranking_agent import ReRankingAgent
 
 import logging
 

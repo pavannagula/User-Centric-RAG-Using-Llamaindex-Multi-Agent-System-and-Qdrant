@@ -124,21 +124,25 @@ def get_search_strategy(search_type: str) -> SearchStrategy:
     else:
         raise ValueError("Invalid search type")
 
-# RetrieverAgent function
-def RetrieverAgent(state: dict) -> OpenAIAgent:
+class Retriever:
+    def __init__(self, state: dict):
+        self.state = state
 
-    def retriever(search_type: str, query: str, reranking_model: str):
+    def retriever(self, search_type: str, query: str, reranking_model: str):
         """
-        Perform the search and retrieval process based on the specified search type, query, metadata filter, and reranking model.
+        Perform the search and retrieval process based on the specified search type, query, and reranking model.
         """
         print("Starting the search and retrieval process")
         search_strategy = get_search_strategy(search_type)
-        documents = search_strategy.search(query, reranking_model)
+        documents = search_strategy.query_hybrid_search(query)
         print("Search and retrieval process completed")
         reranked_documents = ReRankingAgent(query, documents, reranking_model)
         print("Reranking of the retrieved documents is complete")
 
         return reranked_documents
+
+# RetrieverAgent function
+def RetrieverAgent(state: dict) -> OpenAIAgent:
 
 
     def done() -> None:
@@ -148,9 +152,11 @@ def RetrieverAgent(state: dict) -> OpenAIAgent:
         logging.info("Retrieval process is complete and updating the state")
         state["current_speaker"] = None
         state["just_finished"] = True
+    
+    retriever = Retriever(state)
 
     tools = [
-        FunctionTool.from_defaults(fn=retriever),
+        FunctionTool.from_defaults(fn=retriever.retriever),
         FunctionTool.from_defaults(fn=done),
     ]
 
