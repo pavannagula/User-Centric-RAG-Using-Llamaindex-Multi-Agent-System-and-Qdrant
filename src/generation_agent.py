@@ -4,14 +4,20 @@ from llama_index.core import Settings
 from llama_index.core.query_engine import CustomQueryEngine
 from retriever_agent import RetrieverAgent
 from llama_index.llms.openai import OpenAI
+from llama_index.agent.openai import OpenAIAgent
 from dotenv import load_dotenv
 from llama_index.core.response_synthesizers import BaseSynthesizer
+from llama_index.core.tools import FunctionTool
 import os
+import pprint
+import logging
+
+# Set up the logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 load_dotenv()
-
-
 
 def prompt_template():
     """
@@ -41,16 +47,16 @@ def prompt_template():
     prompt_tmpl = PromptTemplate(prompt_str)
     return prompt_tmpl
 
-def prompt_generation(search_type, query, reranking_model):
+def prompt_generation(state):
     """
     Generate the prompt for the given search type, query, and reranking model.
     """
-    state = {}
+    state = state
     retriever_agent = Retriever(state)
-    reranked_documents = retriever_agent.retriever(search_type, query, reranking_model)
+    reranked_documents = retriever_agent.retriever()
 
     context = "\n\n".join(reranked_documents)
-
+    query = state.get('query')
     prompt_templ = prompt_template().format(context_str=context, query_str=query)
 
     return prompt_templ
@@ -86,21 +92,24 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
     """
     Define the GenerationAgent for generating explanations based on the user's query, search type, and reranking model.
     """
-    def generation(search_type: str, query: str, reranking_model: str):
+
+    def generation(state):
         """
         Generate an explanation based on the given search type, query, and reranking model.
         """
-        prompt = prompt_generation(search_type, query, reranking_model)
-        print("Starting the search and retrieval process")
+        prompt = prompt_generation(state)
+        logger.info("Passing the ReRanked documents to the LLM")
         response = create_query_engine(prompt)
-        print("Retrieved the respopnse from LLMs")
-        return print(response)
+        logger.info("Retrieved the summarized response from LLMs")
+        logger.info("Response:")
+        logger.info(response)
+        return response
 
     def done() -> None:
         """
         Signal that the retrieval process is complete and update the state.
         """
-        logging.info("Retrieval process is complete and updating the state")
+        logger.info("Retrieval process is complete and updating the state")
         state["current_speaker"] = None
         state["just_finished"] = True
 
@@ -128,7 +137,17 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
     )
 
 if __name__ == '__main__':
-    state = {}
+    state = {   'chunk_overlap': None,
+    'chunk_size': None,
+    'current_speaker': None,
+    'embedding_model': None,
+    'input_dir': None,
+    'just_finished': False,
+    'query': 'what is self-RAG?',
+    'reranking_model': None,
+    'search_type': 'hybrid',
+    'session_token': None}
     agent = GenerationAgent(state=state)
-    response = agent.chat("I want to query what is self-RAG? with Hybrid search and following with CrossEncoder Reranking model")
+    response = agent.chat("I want to query what is a Ragnarök framework? Also can you use hybrid search along with crossencoder reranking model")
+    print(response)
     
