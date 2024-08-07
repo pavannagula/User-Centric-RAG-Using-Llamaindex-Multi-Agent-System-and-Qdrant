@@ -66,11 +66,8 @@ def concierge_agent_factory(state: dict) -> OpenAIAgent:
         You are a helpful assistant that is helping a user navigate the process of creating a custom RAG application.
         Your job is to ask the user questions to figure out what they want to do, and give them the available options.
         That includes
-        * pre-processing the documents into nodes
-        * embedding and indexing the nodes into a vector database
-        * retrieving relevant nodes based on a query
-        * reranking the retrieved nodes based on relevance
-        * generating a response to the user query using a language model
+        * pre-processing and indexing the nodes into Qdrant vector database using user preferred embedding model
+        * generating a response to the user query using user preferred search type and reranking model
 
         The current state of the user is:
         {pprint.pformat(state, indent=4)}
@@ -78,7 +75,7 @@ def concierge_agent_factory(state: dict) -> OpenAIAgent:
 
     return OpenAIAgent.from_tools(
         tools,
-        llm=OpenAI(model="gpt-4o"),
+        llm=OpenAI(model="gpt-3.5-turbo"),
         system_prompt=system_prompt,
     )
 
@@ -98,7 +95,7 @@ def continuation_agent_factory(state: dict) -> OpenAIAgent:
 
     return OpenAIAgent.from_tools(
         tools,
-        llm=OpenAI(model="gpt-4o", temperature=0.4),
+        llm=OpenAI(model="gpt-3.5-turbo", temperature=0.4),
         system_prompt=system_prompt,
     )
 
@@ -128,10 +125,15 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
         print("Orchestrator checking if reranking model is specified")
         return (state["reranking_model"] is not None)
 
-    def has_llm_model() -> bool:
-        """Useful for checking if the user has specified a language model."""
-        print("Orchestrator checking if language model is specified")
-        return (state["llm_model"] is not None)
+    def has_search_type() -> bool:
+        """Useful for checking if the user has specified a search type."""
+        print("Orchestrator checking if search type is specified")
+        return (state["search_type"] is not None)    
+
+    def has_query() -> bool:
+        """Useful for checking if the user has specified query."""
+        print("Orchestrator checking if query is specified")
+        return (state["query"] is not None)  
 
     tools = [
         FunctionTool.from_defaults(fn=has_input_dir),
@@ -139,7 +141,8 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
         FunctionTool.from_defaults(fn=has_chunk_overlap),
         FunctionTool.from_defaults(fn=has_embedding_model),
         FunctionTool.from_defaults(fn=has_reranking_model),
-        FunctionTool.from_defaults(fn=has_llm_model),
+        FunctionTool.from_defaults(fn=has_search_type),
+        FunctionTool.from_defaults(fn=has_query),
     ]
 
     system_prompt = (f"""
@@ -172,7 +175,7 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
 
     return OpenAIAgent.from_tools(
         tools,
-        llm=OpenAI(model="gpt-4o", temperature=0.4),
+        llm=OpenAI(model="gpt-3.5-turbo", temperature=0.4),
         system_prompt=system_prompt,
     )
 
@@ -184,7 +187,8 @@ def get_initial_state() -> dict:
         "chunk_overlap": None,
         "embedding_model": None,
         "reranking_model": None,
-        "llm_model": None,
+        "search_type": None,
+        "query": None,
         "current_speaker": None,
         "just_finished": False,
     }
@@ -192,9 +196,9 @@ def get_initial_state() -> dict:
 def get_agent(agent_name, state):
     agents = {
         "Data_pre_processing": DocumentPreprocessingAgent,
-        "Indexing": IndexingAgent,
+        "Indexing": QdrantIndexingAgent,
         "Retriever": RetrieverAgent,
-        "ReRanking": RerankingAgent,
+        "ReRanking": ReRankingAgent,
         "Generation": GenerationAgent,
         "Concierge": ConciergeAgent,
         # Add other agents here
