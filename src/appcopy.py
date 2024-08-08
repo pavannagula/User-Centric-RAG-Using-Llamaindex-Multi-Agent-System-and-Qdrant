@@ -159,12 +159,12 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
 
     If there is no current_speaker value, look at the chat history and the current state and you MUST return one of these strings identifying an agent to run:
     * "{Speaker.Data_pre_processing.value}" - if the user wants to pre-process the documents into nodes
-        * If they want to pre-process the documents, but they haven't specified an input file, chunk size, or chunk overlap, return "{Speaker.Concierge.value}" instead
+        * If they want to pre-process the documents, but has_input_dir, has_chunk_size, or has_chunk_overlap returns false, return "{Speaker.Concierge.value}" instead
     * "{Speaker.Indexing.value}" - if the user wants to embed and index the nodes into a vector database
-         * If they want to embed and index the nodes, but there is no preprocessed data, return "{Speaker.Data_pre_processing.value}" instead
-        * If they want to embed and index the nodes, but they haven't specified an embedding model, return "{Speaker.Concierge.value}" instead
+        * If they want to embed and index the nodes, but has_embedding_model returns false, return "{Speaker.Concierge.value}" instead
+        * If they want to embed and index the nodes, but has_input_dir, has_chunk_size, or has_chunk_overlap returns false, return "{Speaker.Data_pre_processing.value}" instead
     * "{Speaker.Generation.value}" - if the user wants to query the documents (requires query, search type, and reranking model)
-        * If they want to query the documents, but they haven't specified the query, search type, or reranking model, return "{Speaker.Concierge.value}" instead
+        * If they want to query the documents, but has_query, has_search_type, or has_reranking_model returns false, return "{Speaker.Concierge.value}" instead
     * "{Speaker.Concierge.value}" - if the user wants to do something else, or hasn't said what they want to do, or you can't figure out what they want to do. Choose this by default.
 
     Output one of these strings and ONLY these strings, without quotes.
@@ -179,7 +179,6 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
 
 def get_initial_state() -> dict:
     return {
-        "session_token": None,
         "input_dir": None,
         "chunk_size": None,
         "chunk_overlap": None,
@@ -191,15 +190,15 @@ def get_initial_state() -> dict:
         "just_finished": False,
     }
 
-def get_agent(agent_name, state):
-    agents = {
-        "Data_pre_processing": DocumentPreprocessingAgent,
-        "Indexing": QdrantIndexingAgent,
-        "Generation": GenerationAgent,
-        "Concierge": continuation_agent_factory,
-        # Add other agents here
-    }
-    return agents.get(agent_name, None)(state)
+# def get_agent(agent_name, state):
+#     agents = {
+#         "Data_pre_processing": DocumentPreprocessingAgent,
+#         "Indexing": QdrantIndexingAgent,
+#         "Generation": GenerationAgent,
+#         "Concierge": continuation_agent_factory,
+#         # Add other agents here
+#     }
+#     return agents.get(agent_name, None)(state)
 
 def run() -> None:
     state = get_initial_state()
@@ -208,8 +207,9 @@ def run() -> None:
 
     first_run = True
     is_retry = False
+    should_continue = True
 
-    while True:
+    while should_continue:
         if first_run:
             # if this is the first run, start the conversation
             user_msg_str = "Hello there!"
@@ -228,11 +228,16 @@ def run() -> None:
             print(f"Continuation agent said {user_msg_str}")
             if user_msg_str == "no_further_task":
                 user_msg_str = input(">> ").strip()
+                if user_msg_str.lower() == "exit":
+                    print("Exiting the conversation...")
+                    should_continue = False
             state["just_finished"] = False
         else:
             # any other time, get user input
             user_msg_str = input("> ").strip()
-
+            if user_msg_str.lower() == "exit":
+                print("Exiting the conversation...")
+                should_continue = False
         current_history = root_memory.get()
 
         # who should speak next?
@@ -246,10 +251,21 @@ def run() -> None:
 
         print(f"Next speaker: {next_speaker}")
 
-        agent_class = get_agent(next_speaker, state)
-        if agent_class:
-            current_speaker = agent_class
+        if next_speaker == Speaker.Data_pre_processing:
+            print("Data pre-processing agent selected")
+            current_speaker = DocumentPreprocessingAgent(state)
             state["current_speaker"] = next_speaker
+        elif next_speaker == Speaker.Indexing:
+            print("indexing agent is selected")
+            current_speaker = QdrantIndexingAgent(state)
+            state["current_speaker"] = next_speaker
+        elif next_speaker == Speaker.Generation:
+            print("Generation agent is selected")
+            current_speaker = GenerationAgent(state)
+            state["current_speaker"] = next_speaker
+        elif next_speaker == Speaker.Concierge:
+            print("Concierge agent selected")
+            current_speaker = concierge_agent_factory(state)
         else:
             print("Orchestration agent failed to return a valid speaker; ask it to try again")
             is_retry = True

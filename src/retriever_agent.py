@@ -181,9 +181,10 @@ def RetrieverAgent(state: dict) -> OpenAIAgent:
         llm=OpenAI(model="gpt-3.5-turbo"),
         system_prompt=system_prompt,
     )
-    
+'''
 if __name__ == '__main__':
     state = {}
     agent = RetrieverAgent(state = state)
     response = agent.chat("I want to query what is self-RAG? with Hybrid search and following with CrossEncoder Reranking model")
     print(response)
+'''

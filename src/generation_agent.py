@@ -2,7 +2,7 @@ from llama_index.core.response_synthesizers import TreeSummarize
 from llama_index.core import PromptTemplate
 from llama_index.core import Settings
 from llama_index.core.query_engine import CustomQueryEngine
-from retriever_agent import RetrieverAgent
+from retriever_agent import Retriever
 from llama_index.llms.openai import OpenAI
 from llama_index.agent.openai import OpenAIAgent
 from dotenv import load_dotenv
@@ -88,6 +88,7 @@ def create_query_engine(prompt: str):
     response = query_engine.query(prompt)
     return response.response
 
+
 def GenerationAgent(state: dict) -> OpenAIAgent:
     """
     Define the GenerationAgent for generating explanations based on the user's query, search type, and reranking model.
@@ -98,20 +99,23 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
         Generate an explanation based on the given search type, query, and reranking model.
         """
         prompt = prompt_generation(state)
-        logger.info("Passing the ReRanked documents to the LLM")
+        print("Passing the ReRanked documents to the LLM")
         response = create_query_engine(prompt)
-        logger.info("Retrieved the summarized response from LLMs")
-        logger.info("Response:")
-        logger.info(response)
+        print("Retrieved the summarized response from LLMs")
+        #logger.info("Response:")
+        #logger.info(response)
         return response
 
-    def done() -> None:
+    def done(state):
         """
-        Signal that the retrieval process is complete and update the state.
+        Signal that the retrieval process is complete, update the state, and return the response to the user.
         """
-        logger.info("Retrieval process is complete and updating the state")
+        response = generation(state)
+        print("Retrieval process is complete and updating the state")
         state["current_speaker"] = None
         state["just_finished"] = True
+        print(f"Here is the answer to your query:{response}")
+        return response
 
     tools = [
         FunctionTool.from_defaults(fn=generation),
@@ -126,8 +130,8 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
     If the user supplies the necessary information, then call the tool "generation" using the provided details to perform the search and retrieval process.
     The current user state is:
     {pprint.pformat(state, indent=4)}
-    When you have completed the retrieval process, call the tool "done" to signal that you are done.
-    If the user asks to do anything other than retrieve documents, call the tool "done" to signal that some other agent should help.
+    When you have completed the retrieval process, call the tool "done" with the response as an argument to signal that you are done and return the response to the user.
+    If the user asks to do anything other than retrieve documents, call the tool "done" with an empty string as an argument to signal that some other agent should help.
     """
 
     return OpenAIAgent.from_tools(
@@ -146,8 +150,6 @@ if __name__ == '__main__':
     'query': 'what is self-RAG?',
     'reranking_model': None,
     'search_type': 'hybrid',
-    'session_token': None}
+    }
     agent = GenerationAgent(state=state)
     response = agent.chat("I want to query what is a Ragnarök framework? Also can you use hybrid search along with crossencoder reranking model")
-    print(response)
-    
