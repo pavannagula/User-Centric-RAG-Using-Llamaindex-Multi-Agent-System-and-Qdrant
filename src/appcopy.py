@@ -102,74 +102,38 @@ def continuation_agent_factory(state: dict) -> OpenAIAgent:
     )
 
 def orchestration_agent_factory(state: dict) -> OpenAIAgent:
-    def has_input_dir() -> bool:
-        """Useful for checking if the user has specified an input file directory."""
-        print("Orchestrator checking if input file directory is specified")
-        return (state["input_dir"] is not None)
+    
 
-    def has_chunk_size() -> bool:
-        """Useful for checking if the user has specified a chunk size."""
-        print("Orchestrator checking if chunk size is specified")
-        return (state["chunk_size"] is not None)
-
-    def has_chunk_overlap() -> bool:
-        """Useful for checking if the user has specified a chunk overlap."""
-        print("Orchestrator checking if chunk overlap is specified")
-        return (state["chunk_overlap"] is not None)
-
-    def has_embedding_model() -> bool:
-        """Useful for checking if the user has specified an embedding model."""
-        print("Orchestrator checking if embedding model is specified")
-        return (state["embedding_model"] is not None)
-
-    def has_reranking_model() -> bool:
-        """Useful for checking if the user has specified a reranking model."""
-        print("Orchestrator checking if reranking model is specified")
-        return (state["reranking_model"] is not None)
-
-    def has_search_type() -> bool:
-        """Useful for checking if the user has specified a search type."""
-        print("Orchestrator checking if search type is specified")
-        return (state["search_type"] is not None)    
-
-    def has_query() -> bool:
-        """Useful for checking if the user has specified query."""
-        print("Orchestrator checking if query is specified")
-        return (state["query"] is not None)  
+      
 
     tools = [
-        FunctionTool.from_defaults(fn=has_input_dir),
-        FunctionTool.from_defaults(fn=has_chunk_size),
-        FunctionTool.from_defaults(fn=has_chunk_overlap),
-        FunctionTool.from_defaults(fn=has_embedding_model),
-        FunctionTool.from_defaults(fn=has_reranking_model),
-        FunctionTool.from_defaults(fn=has_search_type),
-        FunctionTool.from_defaults(fn=has_query),
+       # FunctionTool.from_defaults(fn=has_input_dir),
+       # FunctionTool.from_defaults(fn=has_chunk_size),
+       # FunctionTool.from_defaults(fn=has_chunk_overlap),
+       # FunctionTool.from_defaults(fn=has_embedding_model),
     ]
 
     system_prompt =  (f"""
-    You are the orchestration agent.
-    Your job is to decide which agent to run based on the current state of the user and what they've asked to do. Agents are identified by short strings.
-    What you do is return the name of the agent to run next. You do not do anything else.
+        You are the orchestration agent.
+        Your job is to decide which agent to run based on the current state of the user and what they've asked to do. Agents are identified by short strings.
+        What you do is return the name of the agent to run next. You do not do anything else.
 
-    The current state of the user is:
-    {pprint.pformat(state, indent=4)}
+        The current state of the user is:
+        {pprint.pformat(state, indent=4)}
 
-    If a current_speaker is already selected in the state, simply output that value.
+        If a current_speaker is already selected in the state, simply output that value.
 
-    If there is no current_speaker value, look at the chat history and the current state and you MUST return one of these strings identifying an agent to run:
-    * "{Speaker.Data_pre_processing.value}" - if the user wants to pre-process the documents into nodes
-        * If they want to pre-process the documents, but has_input_dir, has_chunk_size, or has_chunk_overlap returns false, return "{Speaker.Concierge.value}" instead
-    * "{Speaker.Indexing.value}" - if the user wants to embed and index the nodes into a vector database
-        * If they want to embed and index the nodes, but has_embedding_model returns false, return "{Speaker.Concierge.value}" instead
-        * If they want to embed and index the nodes, but has_input_dir, has_chunk_size, or has_chunk_overlap returns false, return "{Speaker.Data_pre_processing.value}" instead
-    * "{Speaker.Generation.value}" - if the user wants to query the documents (requires query, search type, and reranking model)
-        * If they want to query the documents, but has_query, has_search_type, or has_reranking_model returns false, return "{Speaker.Concierge.value}" instead
-    * "{Speaker.Concierge.value}" - if the user wants to do something else, or hasn't said what they want to do, or you can't figure out what they want to do. Choose this by default.
+        If there is no current_speaker value, look at the chat history and the current state and you MUST return one of these strings identifying an agent to run:
+        * "{Speaker.Data_pre_processing.value}" - if the user wants to pre-process the documents into nodes
+            * If they want to pre-process the documents, but has_input_dir, has_chunk_size, or has_chunk_overlap returns false, return "{Speaker.Concierge.value}" instead
+        * "{Speaker.Indexing.value}" - if the user wants to index the nodes into a vector database
+            * If they want to index the nodes, but has_embedding_model returns false, return "{Speaker.Concierge.value}" instead
+        * "{Speaker.Generation.value}" - if the user wants to query the documents (requires query, search type, and reranking model)
+        * "{Speaker.Concierge.value}" - if the user wants to do something else, or hasn't said what they want to do, or you can't figure out what they want to do. Choose this by default.
 
-    Output one of these strings and ONLY these strings, without quotes.
-    NEVER respond with anything other than one of the above strings. DO NOT be helpful or conversational.
-    """)
+        Output one of these strings and ONLY these strings, without quotes.
+        NEVER respond with anything other than one of the above strings. DO NOT be helpful or conversational.
+        """)
 
     return OpenAIAgent.from_tools(
         tools,
@@ -190,15 +154,6 @@ def get_initial_state() -> dict:
         "just_finished": False,
     }
 
-# def get_agent(agent_name, state):
-#     agents = {
-#         "Data_pre_processing": DocumentPreprocessingAgent,
-#         "Indexing": QdrantIndexingAgent,
-#         "Generation": GenerationAgent,
-#         "Concierge": continuation_agent_factory,
-#         # Add other agents here
-#     }
-#     return agents.get(agent_name, None)(state)
 
 def run() -> None:
     state = get_initial_state()
