@@ -128,6 +128,7 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
         response = generation(state)
         print(state)
         print(f"Response is generated and Here is the answer to your query:{response}")
+        return response
 
     def done(state):
         """
@@ -146,17 +147,17 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
     ]
 
     system_prompt = f"""
-    You are a helpful assistant that is performing retrieval and generation tasks for a retrieval-augmented generation (RAG) system.
-    Your task is to retrieve documents based on the user's query, search type, and reranking model, and then generate a response based on the retrieved documents.
-    To do this, you need to know the search type, query, and reranking model.
-    * If they want to query the documents, but has_query, has_search_type, or has_reranking_model returns false. Then, You can ask the user to supply these details.    
-    If the user supplies the necessary information, and make sure that has_query, has_search_type and has_reranking_model are not none,
-    then call the tool "generate_response" using the provided details to perform the retrieval and generation process.
-    The current user state is:
-    {pprint.pformat(state, indent=4)}
-    When you have completed the generation process, call the tool "done" to signal that you are done and return the response to the user.
-    If the user asks to do anything other than retrieve documents, call the tool "done" with an empty string as an argument to signal that some other agent should help.
-    """
+        You are a helpful assistant that is performing retrieval and generation tasks for a retrieval-augmented generation (RAG) system.
+        Your task is to retrieve documents based on the user's query, search type, and reranking model, and then generate a response based on the retrieved documents.
+        To do this, you need to know the  query, search type, and reranking model.
+        If any of the necessary information is missing, ask the user to supply it.
+        If the user supplies the necessary information, and make sure that has_query, has_search_type and has_reranking_model are not none,
+        then call the tool "generate_response" using the provided details to perform the retrieval and generation process.
+        The current user state is:
+        {pprint.pformat(state, indent=4)}
+        When you have completed the generation process, call the tool "done" to signal that you are done and return the response to the user.
+        If the user asks to do anything other than retrieve documents, call the tool "done" with an empty string as an argument to signal that some other agent should help.
+        """
 
 
     return OpenAIAgent.from_tools(
@@ -177,4 +178,4 @@ if __name__ == '__main__':
     'search_type': None,
     }
     agent = GenerationAgent(state=state)
-    response = agent.chat("I want to query what is a Ragnarök framework? Also can you use hybrid search along with crossencoder reranking model")
+    response = agent.chat("I want to query what is Recursive Introspection for Self-Improvement?")

@@ -98,7 +98,7 @@ def create_sparse_vector(sparse_embedding_model, text):
         raise ValueError("The embeddings object does not have 'indices' and 'values' attributes.")
 
 Embeddings = {
-    "sentencetransformer": "sentence-transformers/all-MiniLM-L6-v2",
+    "sentence-transformer": "sentence-transformers/all-MiniLM-L6-v2",
     "snowflake": "Snowflake/snowflake-arctic-embed-m",
     "BAAI": "BAAI/bge-large-en-v1.5",
 }
@@ -173,18 +173,18 @@ def QdrantIndexingAgent(state: dict) -> OpenAIAgent:
     ]
 
     system_prompt = (f"""
-    You are a helpful assistant that is indexing documents for a retrieval-augmented generation (RAG) system.
-    Your task is to index the documents into a Qdrant cluster.
-    To do this, you need to know the embedding model to use.
-    You can ask the user to supply this.
-    * If they want to embed and index the nodes, but has_embedding_model returns false, Then make sure to ask the user for the embedding model.
-    
-    If the user supplies the embedding model, Then, call the tool "Index.indexing" using the provided embedding model to index the documents into the Qdrant cluster.
-    The current user state is:
-    {pprint.pformat(state, indent=4)}
-    When you have indexed the documents into the Qdrant cluster, call the tool "done" to signal that you are done.
-    If the user asks to do anything other than index the documents, call the tool "done" to signal some other agent should help.
-    """)
+        You are a helpful assistant that is indexing nodes for a retrieval-augmented generation (RAG) system.
+        Your task is to index the nodes into a Qdrant cluster.
+        To do this, you need to know the embedding model to use.
+        
+        * If the user want to index the nodes, but has_embedding_model returns false, Then make sure to ask the user for the embedding model.
+        
+        If the user supplies the embedding model, Then, call the tool "Index.indexing" using the provided embedding model to index the nodes into the Qdrant cluster.
+        The current user state is:
+        {pprint.pformat(state, indent=4)}
+        When you have indexed the nodes into the Qdrant cluster, call the tool "done" to signal that you are done.
+        If the user asks to do anything other than index the nodes, call the tool "done" to signal some other agent should help.
+        """)
 
     return OpenAIAgent.from_tools(
         tools,
@@ -193,6 +193,14 @@ def QdrantIndexingAgent(state: dict) -> OpenAIAgent:
     )
 
 if __name__ == '__main__':
-    state = {}
+    state= {   'chunk_overlap': None,
+    'chunk_size': None,
+    'current_speaker': 'indexing',
+    'embedding_model': None,
+    'input_dir': None,
+    'just_finished': False,
+    'query': None,
+    'reranking_model': None,
+    'search_type': None}
     agent = QdrantIndexingAgent(state = state)
-    response = agent.chat("I want to index the documents using the sentence-transformers/all-MiniLM-L6-v2 embedding model.")
+    response = agent.chat("I want to index the nodes into the qdrant vector database.")

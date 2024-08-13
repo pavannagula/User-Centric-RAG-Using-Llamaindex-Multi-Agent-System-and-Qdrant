@@ -41,8 +41,6 @@ from llama_index.core.tools import FunctionTool
 from llama_index.llms.openai import OpenAI 
 from llama_index.agent.openai import OpenAIAgent
 from document_pre_processing_agent import DocumentPreprocessingAgent
-from indexing_agent import QdrantIndexingAgent
-from generation_agent import GenerationAgent
 
 
 class Speaker(str, Enum):
@@ -65,11 +63,14 @@ def concierge_agent_factory(state: dict) -> OpenAIAgent:
     ]
 
     system_prompt = (f"""
-        You are a helpful assistant that is helping a user navigate the process of querying and indexing their documents using this customizable RAG application.
-        Your job is to ask the user questions to figure out what they want to do, and give them the available scenario's.
-        That includes:
-        * pre-processing and indexing the documents/files into Qdrant vector database using user preferred chunking strategies and embedding models.
-        * generating a response to the user query using user preferred search type and reranking model.
+        You are a helpful assistant that is helping a user navigate the process of creating a custom RAG application.
+        Your job is to ask the user questions to figure out what they want to do, and give them the available options.
+        That includes
+        * pre-processing the documents into nodes
+        * embedding and indexing the nodes into a vector database
+        * retrieving relevant nodes based on a query
+        * reranking the retrieved nodes based on relevance
+        * generating a response to the user query using a language model
 
         The current state of the user is:
         {pprint.pformat(state, indent=4)}
@@ -77,7 +78,7 @@ def concierge_agent_factory(state: dict) -> OpenAIAgent:
 
     return OpenAIAgent.from_tools(
         tools,
-        llm=OpenAI(model="gpt-3.5-turbo"),
+        llm=OpenAI(model="gpt-4o"),
         system_prompt=system_prompt,
     )
 
@@ -97,23 +98,51 @@ def continuation_agent_factory(state: dict) -> OpenAIAgent:
 
     return OpenAIAgent.from_tools(
         tools,
-        llm=OpenAI(model="gpt-3.5-turbo", temperature=0.4),
+        llm=OpenAI(model="gpt-4o", temperature=0.4),
         system_prompt=system_prompt,
     )
 
 def orchestration_agent_factory(state: dict) -> OpenAIAgent:
-    
+    def has_input_dir() -> bool:
+        """Useful for checking if the user has specified an input directory."""
+        print("Orchestrator checking if input directory is specified")
+        return (state["input_dir"] is not None)
 
-      
+    def has_chunk_size() -> bool:
+        """Useful for checking if the user has specified a chunk size."""
+        print("Orchestrator checking if chunk size is specified")
+        return (state["chunk_size"] is not None)
+
+    def has_chunk_overlap() -> bool:
+        """Useful for checking if the user has specified a chunk overlap."""
+        print("Orchestrator checking if chunk overlap is specified")
+        return (state["chunk_overlap"] is not None)
+
+    def has_embedding_model() -> bool:
+        """Useful for checking if the user has specified an embedding model."""
+        print("Orchestrator checking if embedding model is specified")
+        return (state["embedding_model"] is not None)
+
+    def has_reranking_model() -> bool:
+        """Useful for checking if the user has specified a reranking model."""
+        print("Orchestrator checking if reranking model is specified")
+        return (state["reranking_model"] is not None)
+
+    def has_llm_model() -> bool:
+        """Useful for checking if the user has specified a language model."""
+        print("Orchestrator checking if language model is specified")
+        return (state["llm_model"] is not None)
 
     tools = [
-       # FunctionTool.from_defaults(fn=has_input_dir),
-       # FunctionTool.from_defaults(fn=has_chunk_size),
-       # FunctionTool.from_defaults(fn=has_chunk_overlap),
-       # FunctionTool.from_defaults(fn=has_embedding_model),
+        FunctionTool.from_defaults(fn=has_input_dir),
+        FunctionTool.from_defaults(fn=has_chunk_size),
+        FunctionTool.from_defaults(fn=has_chunk_overlap),
+        FunctionTool.from_defaults(fn=has_embedding_model),
+        FunctionTool.from_defaults(fn=has_reranking_model),
+        FunctionTool.from_defaults(fn=has_llm_model),
     ]
 
-    system_prompt =  (f"""
+    system_prompt = (f"""
         You are the orchestration agent.
         Your job is to decide which agent to run based on the current state of the user and what they've asked to do. Agents are identified by short strings.
         What you do is return the name of the agent to run next. You do not do anything else.
@@ -125,35 +154,40 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
 
         If there is no current_speaker value, look at the chat history and the current state and you MUST return one of these strings identifying an agent to run:
         * "{Speaker.Data_pre_processing.value}" - if the user wants to pre-process the documents into nodes
-            * If they want to pre-process the documents, but has_input_dir, has_chunk_size, or has_chunk_overlap returns false, return "{Speaker.Concierge.value}" instead
-        * "{Speaker.Indexing.value}" - if the user wants to index the nodes into a vector database
-            * If they want to index the nodes, but has_embedding_model returns false, return "{Speaker.Concierge.value}" instead
-        * "{Speaker.Generation.value}" - if the user wants to query the documents (requires query, search type, and reranking model)
+            * If they want to pre-process the documents, but they haven't specified an input directory, return "{Speaker.Concierge.value}" instead
+            * If they want to pre-process the documents, but they haven't specified a chunk size or chunk overlap, return "{Speaker.Concierge.value}" instead
+        * "{Speaker.Indexing.value}" - if the user wants to embed and index the nodes into a vector database
+            * If they want to embed and index the nodes, but they haven't specified an embedding model, return "{Speaker.Concierge.value}" instead
+        * "{Speaker.Retriever.value}" - if the user wants to retrieve relevant nodes based on a query
+            * If they want to retrieve relevant nodes, but they haven't specified an embedding model, return "{Speaker.Concierge.value}" instead
+        * "{Speaker.ReRanking.value}" - if the user wants to rerank the retrieved nodes based on relevance
+            * If they want to rerank the retrieved nodes, but they haven't specified a reranking model, return "{Speaker.Concierge.value}" instead
+        * "{Speaker.Generation.value}" - if the user wants to generate a response to the user query using a language model
+            * If they want to generate a response, but they haven't specified a language model, return "{Speaker.Concierge.value}" instead
         * "{Speaker.Concierge.value}" - if the user wants to do something else, or hasn't said what they want to do, or you can't figure out what they want to do. Choose this by default.
 
         Output one of these strings and ONLY these strings, without quotes.
-        NEVER respond with anything other than one of the above strings. DO NOT be helpful or conversational.
-        """)
+        NEVER respond with anything other than one of the above seven strings. DO NOT be helpful or conversational.
+    """)
 
     return OpenAIAgent.from_tools(
         tools,
-        llm=OpenAI(model="gpt-3.5-turbo", temperature=0.4),
+        llm=OpenAI(model="gpt-4o", temperature=0.4),
         system_prompt=system_prompt,
     )
 
 def get_initial_state() -> dict:
     return {
+        "session_token": None,
         "input_dir": None,
         "chunk_size": None,
         "chunk_overlap": None,
         "embedding_model": None,
         "reranking_model": None,
-        "search_type": None,
-        "query": None,
+        "llm_model": None,
         "current_speaker": None,
         "just_finished": False,
     }
-
 
 def run() -> None:
     state = get_initial_state()
@@ -162,12 +196,11 @@ def run() -> None:
 
     first_run = True
     is_retry = False
-    should_continue = True
 
-    while should_continue:
+    while True:
         if first_run:
             # if this is the first run, start the conversation
-            user_msg_str = "Hello there!"
+            user_msg_str = "Hello"
             first_run = False
         elif is_retry == True:
             user_msg_str = "That's not right, try again. Pick one agent."
@@ -183,16 +216,11 @@ def run() -> None:
             print(f"Continuation agent said {user_msg_str}")
             if user_msg_str == "no_further_task":
                 user_msg_str = input(">> ").strip()
-                if user_msg_str.lower() == "exit":
-                    print("Exiting the conversation...")
-                    should_continue = False
             state["just_finished"] = False
         else:
             # any other time, get user input
             user_msg_str = input("> ").strip()
-            if user_msg_str.lower() == "exit":
-                print("Exiting the conversation...")
-                should_continue = False
+
         current_history = root_memory.get()
 
         # who should speak next?
@@ -204,19 +232,27 @@ def run() -> None:
             orchestration_response = orchestration_agent_factory(state).chat(user_msg_str, chat_history=current_history)
             next_speaker = str(orchestration_response).strip()
 
-        print(f"Next speaker: {next_speaker}")
+        # print(f"Next speaker: {next_speaker}")
 
         if next_speaker == Speaker.Data_pre_processing:
             print("Data pre-processing agent selected")
             current_speaker = DocumentPreprocessingAgent(state)
             state["current_speaker"] = next_speaker
         elif next_speaker == Speaker.Indexing:
-            print("indexing agent is selected")
-            current_speaker = QdrantIndexingAgent(state)
+            print("Indexing agent selected")
+            current_speaker = indexing_agent_factory(state)
+            state["current_speaker"] = next_speaker
+        elif next_speaker == Speaker.Retriever:
+            print("Retriever agent selected")
+            current_speaker = retriever_agent_factory(state)
+            state["current_speaker"] = next_speaker
+        elif next_speaker == Speaker.ReRanking:
+            print("ReRanking agent selected")
+            current_speaker = reranking_agent_factory(state)
             state["current_speaker"] = next_speaker
         elif next_speaker == Speaker.Generation:
-            print("Generation agent is selected")
-            current_speaker = GenerationAgent(state)
+            print("Generation agent selected")
+            current_speaker = generation_agent_factory(state)
             state["current_speaker"] = next_speaker
         elif next_speaker == Speaker.Concierge:
             print("Concierge agent selected")
@@ -227,8 +263,7 @@ def run() -> None:
             continue
 
         pretty_state = pprint.pformat(state, indent=4)
-        
-        print(f"State: {pretty_state}")
+        # print(f"State: {pretty_state}")
 
         # chat with the current speaker
         response = current_speaker.chat(user_msg_str, chat_history=current_history)
@@ -237,6 +272,8 @@ def run() -> None:
         # update chat history
         new_history = current_speaker.memory.get_all()
         root_memory.set(new_history)
+
+
 
 if __name__ == '__main__':
     print("Testing the Application")
