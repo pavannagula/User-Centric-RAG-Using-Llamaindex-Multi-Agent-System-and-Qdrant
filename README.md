@@ -4,7 +4,7 @@ Ever found yourself using a RAG application and thought, **“What if I could sw
 
 Now, imagine if instead of diving back into your codebase and manually making those changes, you could simply ask an Agent to handle it all within the chat. **Sounds great, right?**
 
-Well, I’ve faced these exact challenges too, which is why I developed a unique solution: **User-Centric RAG multi-agentic** application built using the LlamaIndex Multi-Agent System.
+Well, I’ve faced these exact challenges too, which is why I developed a unique solution: **User-Centric RAG** a multi-agentic application built using the LlamaIndex Multi-Agent Concierge System.
 
 With this Multi-Agentic RAG application, you hold the keys to the entire system. It empowers you to effortlessly choose your chunking strategies, preferred embedding models, search types (semantic or hybrid), and reranking models—all through a simple chat interface. It is tailored exactly to your needs.
 
