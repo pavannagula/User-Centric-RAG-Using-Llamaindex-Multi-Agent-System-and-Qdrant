@@ -20,9 +20,8 @@ class SentenceTransformerRerank:
 
 # Dictionary of reranker models
 RERANKERS = {
-    #"WithoutReranker": None,
     "cross-encoder": SentenceTransformerRerank(model='cross-encoder/ms-marco-MiniLM-L-6-v2', top_n=2),
-    "bge": SentenceTransformerRerank(model="BAAI/bge-reranker-base", top_n=2),
+    "BGE": SentenceTransformerRerank(model="BAAI/bge-reranker-base", top_n=2),
     #"bge-reranker-large": SentenceTransformerRerank(model="BAAI/bge-reranker-large", top_n=2)
 }
 

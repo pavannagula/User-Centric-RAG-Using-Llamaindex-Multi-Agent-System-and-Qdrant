@@ -14,7 +14,7 @@ from generation_agent import GenerationAgent
 
 # Title
 st.set_page_config(page_title="Customize RAG with Multi Agents using Llamaindex and Qdrant", layout="wide")
-st.title("Chat with your Multi Agentic RAG")
+st.title("Personalized Multi-Agentic RAG using Llamaindex and Qdrant")
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -43,10 +43,8 @@ if user_msg_str:
     with st.chat_message("user"):
         st.markdown(user_msg_str)
 
-    # Get current history
     current_history = st.session_state.root_memory.get()
 
-    # Who should speak next?
     if st.session_state.state["current_speaker"]:
         next_speaker = st.session_state.state["current_speaker"]
     else:
@@ -73,11 +71,11 @@ if user_msg_str:
 
     # Chat with the current speaker
     response = current_speaker.chat(user_msg_str, chat_history=current_history)
-    print(f"Response: {response}")
 
     # Display assistant response in chat message container
     with st.chat_message("assistant"):
-        st.write(str(response))
+        st.write(f"{str(response)}")
+
 
     # Update chat history
     new_history = current_speaker.memory.get_all()

@@ -10,11 +10,6 @@ from llama_index.core.response_synthesizers import BaseSynthesizer
 from llama_index.core.tools import FunctionTool
 import os
 import pprint
-import logging
-
-# Set up the logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 load_dotenv()
@@ -63,27 +58,27 @@ def prompt_generation(state):
 
 class RAGStringQueryEngine(CustomQueryEngine):
     llm: OpenAI
-    response_synthesizer: BaseSynthesizer
+    #response_synthesizer: BaseSynthesizer
 
     def custom_query(self, prompt: str) -> str:
         """
         Generate a response for the given prompt using the LLM and response synthesizer.
         """
         response = self.llm.complete(prompt)
-        summary = self.response_synthesizer.get_response(query_str=str(response), text_chunks=str(prompt))
+        #summary = self.response_synthesizer.get_response(query_str=str(response), text_chunks=str(prompt))
 
-        return str(summary)
+        return str(response)
     
 def create_query_engine(prompt: str):
     """
     Create a query engine for generating responses based on the given prompt.
     """
     llm = OpenAI(model="gpt-3.5-turbo")
-    response_synthesizer = TreeSummarize(llm=llm)
+    #response_synthesizer = TreeSummarize(llm=llm)
 
     query_engine = RAGStringQueryEngine(
         llm=llm,
-        response_synthesizer=response_synthesizer,
+        #response_synthesizer=response_synthesizer,
     )
     response = query_engine.query(prompt)
     return response.response
@@ -95,9 +90,8 @@ def generation(state):
     prompt = prompt_generation(state)
     print("Passing the ReRanked documents to the LLM")
     response = create_query_engine(prompt)
-    print("Retrieved the summarized response from LLMs")
-    #logger.info("Response:")
-    #logger.info(response)
+    print("Retrieved the response from LLMs")
+
     return response
 
 
@@ -124,17 +118,16 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
         state['query'] = query
         return (state["query"] is not None)
 
-    def generate_response(state):
+    def generate_response(state) -> str:
         response = generation(state)
         print(state)
-        print(f"Response is generated and Here is the answer to your query:{response}")
+        #print(f"Response is generated and Here is the answer to your query:{response}")
         return response
 
-    def done(state):
+    def done():
         """
         Signal that the retrieval process is complete, update the state, and return the response to the user.
         """
-        print("Retrieval and Generation process is complete and updating the state")
         state["current_speaker"] = None
         state["just_finished"] = True
 
@@ -142,7 +135,7 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
         FunctionTool.from_defaults(fn=has_query),
         FunctionTool.from_defaults(fn=has_search_type),
         FunctionTool.from_defaults(fn=has_reranking_model),
-        FunctionTool.from_defaults(fn=generate_response),
+        FunctionTool.from_defaults(fn=generate_response, return_direct=True),
         FunctionTool.from_defaults(fn=done),
     ]
 
@@ -152,16 +145,16 @@ def GenerationAgent(state: dict) -> OpenAIAgent:
         To do this, you need to know the  query, search type, and reranking model.
         If any of the necessary information is missing, ask the user to supply it.
         If the user supplies the necessary information, and make sure that has_query, has_search_type and has_reranking_model are not none,
-        then call the tool "generate_response" using the provided details to perform the retrieval and generation process.
+        then call the tool "generate_response" using the provided details to perform the retrieval and generation process because it has the generation function.
         The current user state is:
         {pprint.pformat(state, indent=4)}
-        When you have completed the generation process, call the tool "done" to signal that you are done and return the response to the user.
+        When you have completed the generation process, call the tool "done" to signal that you are done.
         If the user asks to do anything other than retrieve documents, call the tool "done" with an empty string as an argument to signal that some other agent should help.
         """
 
 
     return OpenAIAgent.from_tools(
-        tools,
+        tools = tools,
         llm=OpenAI(model="gpt-3.5-turbo"),
         system_prompt=system_prompt,
     )
@@ -178,4 +171,5 @@ if __name__ == '__main__':
     'search_type': None,
     }
     agent = GenerationAgent(state=state)
-    response = agent.chat("I want to query what is Recursive Introspection for Self-Improvement?")
+    response = agent.chat("I want to query what is Recursive Introspection for Self-Improvement? with hybrid search type along with cross-encoder reranking model")
+    print(response)

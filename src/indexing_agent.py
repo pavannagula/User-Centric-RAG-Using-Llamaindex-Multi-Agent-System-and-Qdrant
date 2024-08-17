@@ -8,7 +8,6 @@ from tqdm import tqdm
 
 from typing import List
 import pprint
-from colorama import Fore, Back, Style
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import FunctionTool
@@ -16,10 +15,6 @@ from llama_index.llms.openai import OpenAI
 from llama_index.agent.openai import OpenAIAgent
 from reranking_agent import ReRankingAgent
 
-import logging
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
 
 # Load environmental variables from a .env file
 load_dotenv()
@@ -48,7 +43,7 @@ def load_nodes():
         print(f"Loaded {len(nodes)} the nodes from JSON file")
 
     except Exception as e:
-        logging.error(f"Error loading nodes from JSON file: {e}")
+        print(f"Error loading nodes from JSON file: {e}")
         raise
 
     return documents, metadata
@@ -173,18 +168,18 @@ def QdrantIndexingAgent(state: dict) -> OpenAIAgent:
     ]
 
     system_prompt = (f"""
-        You are a helpful assistant that is indexing nodes for a retrieval-augmented generation (RAG) system.
-        Your task is to index the nodes into a Qdrant cluster.
-        To do this, you need to know the embedding model to use.
-        
-        * If the user want to index the nodes, but has_embedding_model returns false, Then make sure to ask the user for the embedding model.
-        
-        If the user supplies the embedding model, Then, call the tool "Index.indexing" using the provided embedding model to index the nodes into the Qdrant cluster.
-        The current user state is:
-        {pprint.pformat(state, indent=4)}
-        When you have indexed the nodes into the Qdrant cluster, call the tool "done" to signal that you are done.
-        If the user asks to do anything other than index the nodes, call the tool "done" to signal some other agent should help.
-        """)
+    You are a helpful assistant responsible for indexing nodes in a retrieval-augmented generation (RAG) system.
+    Your task is to index these nodes into a Qdrant cluster.
+    To proceed, you need to know which embedding model to use.
+    
+    * If the user intends to index the nodes but has not specified an embedding model (has_embedding_model is false), kindly prompt the user to provide the embedding model.
+    
+    Once the embedding model is provided, use the tool "Index.indexing" with the specified embedding model to index the nodes into the Qdrant cluster.
+    The current user state is:
+    {pprint.pformat(state, indent=4)}
+    After successfully indexing the nodes into the Qdrant cluster, call the tool "done" to signal the completion of your task.
+    If the user requests a task other than indexing the nodes, call the tool "done" to indicate that another agent should assist.
+    """)
 
     return OpenAIAgent.from_tools(
         tools,
@@ -203,4 +198,4 @@ if __name__ == '__main__':
     'reranking_model': None,
     'search_type': None}
     agent = QdrantIndexingAgent(state = state)
-    response = agent.chat("I want to index the nodes into the qdrant vector database.")
+    response = agent.chat("I want to index the nodes into the vector database using the sentence-transformer embedding model.")

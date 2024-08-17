@@ -1,33 +1,3 @@
-"""
-A multi-agent conversational system for navigating a complex task tree.
-In this demo, the user is navigating to create a custom RAG application.
-AS RAG Application consists of multiple componenets to build based on user preference. 
-I'm going to ask the user following components to specify:
-    - Data
-    - chunking details
-    - Embeddings
-    - Reranking Models
-    - LLMs
-
-Note: You can modify the user components as per your requirements.
-
-Agent 1: pre-process the documents into nodes.
-
-Agent 2: Embedding and indexing the nodes into the qdrant vector database
-
-Agent 3: Retriever which uses the embedding models and converts the query to embeddings and clubs them
-metadata filters to search the qdrant vector database
-
-Agent 4: Reranking model defining based on the user preferred reranking model
-
-Agent 5: Generates the response to the user query using the pre defined prompt templates and 
-feeds it to the LLM based on the user prereferred LLM model
-
-Concierge agent: a catch-all agent that helps navigate between the other 4.
-
-Orchestration agent: decides which agent to run based on the current state of the user.
-"""
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -109,33 +79,30 @@ def orchestration_agent_factory(state: dict) -> OpenAIAgent:
         print("Orchestrator checking if embedding model is specified")
         state['embedding_model'] = embedding_model
         return (state["embedding_model"] is not None)
-    # def has_reranking_model(reranking_model: str) -> bool:
-    #     """Useful for checking if the user has specified a reranking model."""
-    #     print("checking if reranking model is specified")
-    #     state['reranking_model'] = reranking_model
-    #     return (state["reranking_model"] is not None)
+    def has_reranking_model(reranking_model: str) -> bool:
+        """Useful for checking if the user has specified a reranking model."""
+        print("checking if reranking model is specified")
+        state['reranking_model'] = reranking_model
+        return (state["reranking_model"] is not None)
 
-    # def has_search_type(search_type: str) -> bool:
-    #     """Useful for checking if the user has specified a search type."""
-    #     print("checking if search type is specified")
-    #     state['search_type'] = search_type
-    #     return (state["search_type"] is not None)    
+    def has_search_type(search_type: str) -> bool:
+        """Useful for checking if the user has specified a search type."""
+        print("checking if search type is specified")
+        state['search_type'] = search_type
+        return (state["search_type"] is not None)    
 
-    # def has_query(query: str) -> bool:
-    #     """Useful for checking if the user has specified query."""
-    #     print("checking if query is specified")
-    #     state['query'] = query
-    #     return (state["query"] is not None)
+    def has_query(query: str) -> bool:
+        """Useful for checking if the user has specified query."""
+        print("checking if query is specified")
+        state['query'] = query
+        return (state["query"] is not None)
       
 
     tools = [
-       # FunctionTool.from_defaults(fn=has_input_dir),
-       # FunctionTool.from_defaults(fn=has_chunk_size),
-       # FunctionTool.from_defaults(fn=has_chunk_overlap),
         FunctionTool.from_defaults(fn=has_embedding_model),
-        # FunctionTool.from_defaults(fn=has_query),
-        # FunctionTool.from_defaults(fn=has_search_type),
-        # FunctionTool.from_defaults(fn=has_reranking_model),
+        FunctionTool.from_defaults(fn=has_query),
+        FunctionTool.from_defaults(fn=has_search_type),
+        FunctionTool.from_defaults(fn=has_reranking_model),
     ]
 
     system_prompt =  (f"""
@@ -177,6 +144,7 @@ def get_initial_state() -> dict:
         "query": None,
         "current_speaker": None,
         "just_finished": False,
+        "response": None,
     }
 
 
@@ -191,7 +159,6 @@ def run() -> None:
 
     while should_continue:
         if first_run:
-            # if this is the first run, start the conversation
             user_msg_str = "Hello there!"
             first_run = False
         elif is_retry == True:
@@ -213,14 +180,12 @@ def run() -> None:
                     should_continue = False
             state["just_finished"] = False
         else:
-            # any other time, get user input
             user_msg_str = input("> ").strip()
             if user_msg_str.lower() == "exit":
                 print("Exiting the conversation...")
                 should_continue = False
         current_history = root_memory.get()
 
-        # who should speak next?
         if (state["current_speaker"]):
             print(f"There's already a speaker: {state['current_speaker']}")
             next_speaker = state["current_speaker"]
@@ -255,11 +220,11 @@ def run() -> None:
         
         print(f"State: {pretty_state}")
 
-        # chat with the current speaker
+        
         response = current_speaker.chat(user_msg_str, chat_history=current_history)
-        print(Fore.MAGENTA + str(response) + Style.RESET_ALL)
+        print(str(response))
 
-        # update chat history
+        
         new_history = current_speaker.memory.get_all()
         root_memory.set(new_history)
 

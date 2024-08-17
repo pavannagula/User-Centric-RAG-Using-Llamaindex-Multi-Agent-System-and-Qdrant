@@ -9,7 +9,6 @@ from sentence_transformers import CrossEncoder
 
 from typing import List
 import pprint
-from colorama import Fore, Back, Style
 
 from llama_index.core.memory import ChatMemoryBuffer
 from llama_index.core.tools import FunctionTool
@@ -33,7 +32,7 @@ class SearchStrategy:
 class SemanticSearch(SearchStrategy):
     def query_semantic_search(self, query: str) -> List[str]:
         # Load the dense embedding model
-        embedding_model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+        embedding_model = TextEmbedding(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
         # Initialize the Qdrant client
         qdrant_client = QdrantClient(
@@ -43,16 +42,19 @@ class SemanticSearch(SearchStrategy):
         )
 
         # Embed the query using the dense embedding model
-        dense_query = embedding_model.encode([query]).tolist()[0]
+        dense_query = list(embedding_model.embed([query]))[0].tolist()
 
         # Perform the semantic search
-        results = qdrant_client.search(
-            collection_name=Collection_Name,
-            query_vector=dense_query,
-            limit=4,
-        )
+        results = qdrant_client.query_points(
+                collection_name=Collection_Name,
+                query=dense_query,
+                using="dense",
+                limit=4,
+            )
+            
+        documents = [point.payload['text'] for point in results.points]
 
-        return results
+        return documents
 
 class HybridSearch(SearchStrategy):
     def query_hybrid_search(self, query: str) -> List[str]:
@@ -137,7 +139,12 @@ class Retriever:
         """
         print("Starting the search and retrieval process")
         search_strategy = get_search_strategy(self.search_type)
-        documents = search_strategy.query_hybrid_search(self.query)
+        if self.search_type == 'semantic':
+            documents = search_strategy.query_semantic_search(self.query)
+        elif self.search_type == 'hybrid':
+            documents = search_strategy.query_hybrid_search(self.query)
+        else:
+            raise ValueError("Invalid search type")
         print("Search and retrieval process completed")
         reranked_documents = ReRankingAgent(self.query, documents, self.reranking_model)
         print("Reranking of the retrieved documents is complete")
