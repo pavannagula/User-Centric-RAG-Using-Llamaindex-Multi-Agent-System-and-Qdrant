@@ -1,2 +1,2 @@
-# RAG-Automation-Using-Llamaindex-Agents-and-Qdrant
-This project involves using llamaindex Multi Agents concierge system and Qdrant vector database to automate the RAG application with user preferences over LLMs, Embeddings, and Reranking Models.
+# User-Centric-RAG-Using-Llamaindex-Multi-Agents-System-and-Qdrant
+This project demonstrates the use of LlamaIndex Multi-Agent System to convert a Retrieval-Augmented Generation (RAG) application into a user-controllable application. By implementing agents for each component of the RAG pipeline, such as document preprocessing, indexing, retrieval, and generation, the system allows users to customize their experience by choosing their own chunking strategies, preferred embedding models, search types (semantic or hybrid), and reranking models. This approach puts the user in the driver's seat of the application, enabling them to tailor the system to their specific needs and preferences.
