@@ -1,2 +1,4 @@
 # User-Centric-RAG-Using-Llamaindex-Multi-Agents-System-and-Qdrant
 This project demonstrates the use of LlamaIndex Multi-Agent System to convert a Retrieval-Augmented Generation (RAG) application into a user-controllable application. By implementing agents for each component of the RAG pipeline, such as document preprocessing, indexing, retrieval, and generation, the system allows users to customize their experience by choosing their own chunking strategies, preferred embedding models, search types (semantic or hybrid), and reranking models. This approach puts the user in the driver's seat of the application, enabling them to tailor the system to their specific needs and preferences.
+
+![User_Centric_RAG_Architecture](https://github.com/user-attachments/assets/e5123bdd-05cb-4e9f-9f63-e6020f76303d)
