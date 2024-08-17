@@ -16,7 +16,7 @@ This project showcases how the LlamaIndex Multi-Agent System transforms a Retrie
 
 ![User_Centric_RAG_Architecture](https://github.com/user-attachments/assets/e5123bdd-05cb-4e9f-9f63-e6020f76303d)
 
-If you're interested, I have written a medium blog with even more detailed explanation, check out the blog here: 
+If you're interested, I have written a medium blog with even more detailed explanation, check out the blog here: https://medium.com/@pavannagula76/user-centric-rag-transforming-rag-with-llamaindex-multi-agent-system-and-qdrant-cf3c32cfe6f3
 
 **Results:**
 
