@@ -12,11 +12,14 @@ With this Multi-Agentic RAG application, you hold the keys to the entire system.
 
 This project showcases how the LlamaIndex Multi-Agent System transforms a Retrieval-Augmented Generation (RAG) application into a fully user-controllable experience. By incorporating agents for each stage of the RAG pipeline document preprocessing, indexing, retrieval, and generation the system empowers users to personalize their interaction. They can select their preferred chunking strategies, embedding models, search types (semantic or hybrid), and reranking models. This approach puts users in control, allowing them to tailor the application to fit their unique needs and preferences.
 
+**Architecture:**
+
 ![User_Centric_RAG_Architecture](https://github.com/user-attachments/assets/e5123bdd-05cb-4e9f-9f63-e6020f76303d)
 
 If you're interested, I have written a medium blog with even more detailed explanation, check out the blog here: 
 
 **Results:**
+
 The screenshots below illustrate the power and flexibility of the Generation Agent in action. In this demonstration, I ran the same query twice, each time adjusting the search type and reranking model to explore different outcomes.
 
 - **First Query:** Utilized **Semantic Search** with the **BGE reranking model**, delivering results optimized for semantic relevance.
