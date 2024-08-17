@@ -1,6 +1,6 @@
 # User-Centric-RAG-Using-Llamaindex-Multi-Agents-System-and-Qdrant
 
-Ever found yourself using a RAG application and thought, **“What if I could switch from semantic to hybrid search for this query?** Or maybe, **“I should have tried a different reranking model or embedding strategy for better results.”**
+Ever found yourself using a RAG application and thought, **“What if I could switch from semantic to hybrid search for this query?** Or maybe, **“I should have tried a different reranking model or embedding model for better results.”**
 
 Now, imagine if instead of diving back into your codebase and manually making those changes, you could simply ask an Agent to handle it all within the chat. **Sounds great, right?**
 
