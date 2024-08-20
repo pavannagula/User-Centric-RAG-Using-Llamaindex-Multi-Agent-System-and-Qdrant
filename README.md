@@ -1,4 +1,4 @@
-# User Centric RAG Using Llamaindex Multi Agents System and Qdrant
+# User-Centric RAG Using Llamaindex Multi Agents System and Qdrant
 
 Ever found yourself using a RAG application and thought, **“What if I could switch from semantic to hybrid search for this query?** Or maybe, **“I should have tried a different reranking model or embedding model for better results.”**
 
